@@ -24,6 +24,15 @@ function pickFreeCell(freeCells, random) {
   return freeCells[index];
 }
 
+function isOffGrid({ x, y }) {
+  return x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE;
+}
+
+// The tail (last segment) vacates its cell this tick, so it is excluded (design D1).
+function hitsBody(snake, cell) {
+  return snake.slice(0, -1).some((segment) => segment.x === cell.x && segment.y === cell.y);
+}
+
 const DELTA = {
   [DIRECTIONS.UP]: { x: 0, y: -1 },
   [DIRECTIONS.DOWN]: { x: 0, y: 1 },
@@ -63,16 +72,31 @@ export function queueDirection(state, direction) {
   return { ...state, pendingDirection: direction };
 }
 
-export function step(state) {
+export function step(state, { random = Math.random } = {}) {
   const direction = state.pendingDirection;
   const delta = DELTA[direction];
   const head = state.snake[0];
   const newHead = { x: head.x + delta.x, y: head.y + delta.y };
-  const newSnake = [newHead, ...state.snake.slice(0, -1)];
+
+  if (isOffGrid(newHead) || hitsBody(state.snake, newHead)) {
+    return { ...state, status: STATUS.GAME_OVER };
+  }
+
+  const eats = state.food !== null && newHead.x === state.food.x && newHead.y === state.food.y;
+  const grownSnake = [newHead, ...state.snake];
+  const newSnake = eats ? grownSnake : grownSnake.slice(0, -1);
+
+  if (!eats) {
+    return { ...state, snake: newSnake, direction, pendingDirection: direction };
+  }
+
+  const freeCells = enumerateFreeCells(newSnake);
   return {
     ...state,
     snake: newSnake,
     direction,
     pendingDirection: direction,
+    score: state.score + 1,
+    food: pickFreeCell(freeCells, random),
   };
 }
