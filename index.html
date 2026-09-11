@@ -22,7 +22,24 @@
         <p id="overlay-hint" class="overlay__hint"></p>
       </div>
     </div>
-    <p class="game__help">Arrow keys to move · Enter or Space to restart</p>
+    <aside id="panel" class="panel" aria-labelledby="panel-title">
+      <h2 id="panel-title">How to play</h2>
+      <dl class="panel__stats" aria-live="polite" aria-atomic="true">
+        <dt>Level</dt>
+        <dd id="level">Level 1</dd>
+        <dt>Speed</dt>
+        <dd id="speed">150 ms / tick</dd>
+      </dl>
+      <ul class="panel__list">
+        <li>Arrow keys or WASD to move</li>
+        <li>Enter or Space to restart</li>
+      </ul>
+      <ul class="panel__legend">
+        <li><span class="swatch swatch--food" aria-hidden="true"></span>Apple — grow +1 score</li>
+        <li><span class="swatch swatch--food-negative" aria-hidden="true"></span>Negative apple — shrink 2, no score</li>
+        <li><span class="swatch swatch--wall" aria-hidden="true"></span>Wall — game over on contact</li>
+      </ul>
+    </aside>
   </main>
 
   <!-- Module scripts are blocked on file:// (CORS). Serve over HTTP, e.g. python3 -m http.server 8000, then open http://localhost:8000 -->

@@ -88,13 +88,28 @@ body {
 
 .game {
   width: min(100%, 640px);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'header'
+    'board'
+    'panel';
   gap: var(--space-md);
 }
 
+@media (min-width: 720px) {
+  .game {
+    width: min(100%, 920px);
+    align-items: start;
+    grid-template-columns: minmax(0, 640px) 240px;
+    grid-template-areas:
+      'header header'
+      'board panel';
+  }
+}
+
 .game__header {
+  grid-area: header;
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-areas:
@@ -137,20 +152,94 @@ body {
     box-shadow var(--duration-fade) ease;
 }
 
-.game__help {
-  margin: 0;
-  color: var(--color-page-fg-muted);
-  font-size: 0.875rem;
-  text-align: center;
-}
-
 /* Board */
 
 .board-wrap {
+  grid-area: board;
   position: relative;
   width: 100%;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-board);
+}
+
+/* Side panel */
+
+.panel {
+  grid-area: panel;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: var(--space-md);
+  border: 1px solid var(--color-board-border);
+  border-radius: var(--radius-md);
+  color: var(--color-page-fg-muted);
+  font-size: 0.9375rem;
+}
+
+#panel-title {
+  margin: 0;
+  color: var(--color-page-fg);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel__stats {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-xs) var(--space-sm);
+}
+
+.panel__stats dt {
+  color: var(--color-page-fg-muted);
+}
+
+.panel__stats dd {
+  margin: 0;
+  color: var(--color-page-fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel__list,
+.panel__legend {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.panel__legend li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.swatch {
+  flex: none;
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.swatch--food {
+  border-radius: 50%;
+  background: var(--color-food);
+}
+
+.swatch--food-negative {
+  border-radius: 50%;
+  border: 2px solid var(--color-food-negative);
+  background: transparent;
+}
+
+.swatch--wall {
+  border-radius: var(--radius-sm);
+  background: var(--color-wall);
 }
 
 #board {

@@ -7,13 +7,14 @@ import { attachInput } from './input.js';
 import { createOverlay } from './overlay.js';
 import { createHighScore } from './highScore.js';
 
-const TICK_MS = 150;
 const PHASE = { IDLE: 'idle', PLAYING: 'playing' };
 
 const canvas = document.getElementById('board');
 const hud = document.getElementById('hud');
 const bestLabel = document.getElementById('best');
 const boardWrap = document.getElementById('board-wrap');
+const levelLabel = document.getElementById('level');
+const speedLabel = document.getElementById('speed');
 const render = createRenderer(canvas, { hud, cellSize: 32 });
 const overlay = createOverlay(document.getElementById('overlay'));
 const highScore = createHighScore(readLocalStorage());
@@ -49,6 +50,12 @@ function popHud() {
   hud.classList.add('is-popping');
 }
 
+// Reads state only; the panel never computes level/speed itself.
+function showPanel() {
+  levelLabel.textContent = `Level ${state.level}`;
+  speedLabel.textContent = `${state.tickMs} ms / tick`;
+}
+
 function finish() {
   clearInterval(timer);
   const isGameOver = state.status === STATUS.GAME_OVER;
@@ -60,9 +67,15 @@ function finish() {
   overlay.show({
     kind: isGameOver ? 'game-over' : 'won',
     title: isGameOver ? (isNew ? 'New record!' : 'Game over') : 'You won!',
-    score: `Score: ${state.score} · Best: ${best}`,
+    score: `Score: ${state.score} · Level ${state.level} · Best: ${best}`,
     hint: 'Press Enter or Space to restart',
   });
+}
+
+// Re-arms on every call so a `tickMs` change (level-up) never drifts the running interval.
+function armTimer() {
+  clearInterval(timer);
+  timer = setInterval(tick, state.tickMs);
 }
 
 function tick() {
@@ -72,17 +85,22 @@ function tick() {
   if (state.score > previous.score) {
     popHud();
   }
+  if (state.tickMs !== previous.tickMs) {
+    armTimer();
+  }
+  if (state.level !== previous.level) {
+    showPanel();
+  }
   if (state.status !== STATUS.PLAYING) {
     finish();
   }
 }
 
 function startSimulation() {
-  clearInterval(timer);
   phase = PHASE.PLAYING;
   overlay.hide();
   lastTickAt = performance.now();
-  timer = setInterval(tick, TICK_MS);
+  armTimer();
 }
 
 function beginRun(direction) {
@@ -94,6 +112,7 @@ function restart() {
   state = createInitialState({ random: Math.random });
   previous = null;
   bestLabel.classList.remove('is-new-record');
+  showPanel();
   startSimulation();
 }
 
@@ -101,7 +120,7 @@ function frame(now) {
   const simulating = isSimulating();
   render(state, {
     previous: simulating ? previous : null,
-    progress: simulating ? Math.min(1, (now - lastTickAt) / TICK_MS) : 1,
+    progress: simulating ? Math.min(1, (now - lastTickAt) / state.tickMs) : 1,
     time: now,
   });
   requestAnimationFrame(frame);
@@ -111,6 +130,7 @@ function boot() {
   state = createInitialState({ random: Math.random });
   render(state);
   showBest(highScore.get(), false);
+  showPanel();
   overlay.show({
     kind: 'start',
     title: 'Snake',
