@@ -66,13 +66,17 @@ const OPPOSITE_DIRECTION = {
 };
 
 export function queueDirection(state, direction) {
-  if (OPPOSITE_DIRECTION[state.direction] === direction) {
+  if (state.status !== STATUS.PLAYING || OPPOSITE_DIRECTION[state.direction] === direction) {
     return state;
   }
   return { ...state, pendingDirection: direction };
 }
 
 export function step(state, { random = Math.random } = {}) {
+  if (state.status !== STATUS.PLAYING) {
+    return state;
+  }
+
   const direction = state.pendingDirection;
   const delta = DELTA[direction];
   const head = state.snake[0];
@@ -91,12 +95,17 @@ export function step(state, { random = Math.random } = {}) {
   }
 
   const freeCells = enumerateFreeCells(newSnake);
-  return {
+  const scored = {
     ...state,
     snake: newSnake,
     direction,
     pendingDirection: direction,
     score: state.score + 1,
-    food: pickFreeCell(freeCells, random),
   };
+
+  if (freeCells.length === 0) {
+    return { ...scored, status: STATUS.WON, food: null };
+  }
+
+  return { ...scored, food: pickFreeCell(freeCells, random) };
 }
