@@ -415,6 +415,115 @@ describe('CORE-12 — Restart produces fresh state', () => {
   });
 });
 
+describe('COMPAT-01 — legacy state defaults missing walls to []', () => {
+  test('step on a hand-built state without a walls key returns walls: [] (behaves like walls:[])', () => {
+    const legacyState = {
+      snake: [
+        { x: 11, y: 10 },
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+      ],
+      direction: 'right',
+      pendingDirection: 'right',
+      food: { x: 0, y: 0 },
+      score: 0,
+      status: 'playing',
+    };
+    const next = step(legacyState);
+    assert.deepEqual(next.walls, []);
+  });
+});
+
+describe('WALL-05 — wall collision ends the game, same priority as off-grid', () => {
+  test('head advancing onto a wall cell directly ahead ends the game', () => {
+    const state = playing({ walls: [{ x: 12, y: 10 }], food: { x: 0, y: 0, kind: 'normal' } });
+    const next = step(state);
+    assert.equal(next.status, 'game-over');
+  });
+
+  test('a wall collision on a different heading proves the check is general, not hardcoded', () => {
+    const state = playing({
+      snake: [
+        { x: 10, y: 9 },
+        { x: 10, y: 10 },
+        { x: 10, y: 11 },
+      ],
+      direction: 'up',
+      pendingDirection: 'up',
+      walls: [{ x: 10, y: 8 }],
+      food: { x: 0, y: 0, kind: 'normal' },
+    });
+    const next = step(state);
+    assert.equal(next.status, 'game-over');
+  });
+});
+
+describe('WALL-04 — wall persistence across ticks with no level-up', () => {
+  test('walls persist unchanged across two sequential non-eating steps', () => {
+    const walls = [{ x: 0, y: 0 }];
+    let state = playing({ walls, food: { x: 15, y: 10, kind: 'normal' } });
+
+    state = step(state);
+    assert.deepEqual(state.walls, walls);
+
+    state = step(state);
+    assert.deepEqual(state.walls, walls);
+  });
+
+  test('walls persist unchanged across an eating step that does not level up', () => {
+    const walls = [{ x: 5, y: 5 }, { x: 6, y: 5 }];
+    const state = playing({ walls, score: 1 });
+    const next = step(state, { random: () => 0.9 });
+    assert.deepEqual(next.walls, walls);
+  });
+
+  test('a legacy state with no walls key still yields walls: [] after an eating step (COMPAT-01 x WALL-04)', () => {
+    const legacyState = {
+      snake: [
+        { x: 11, y: 10 },
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+      ],
+      direction: 'right',
+      pendingDirection: 'right',
+      food: { x: 12, y: 10 },
+      score: 0,
+      status: 'playing',
+    };
+    const next = step(legacyState, { random: () => 0.9 });
+    assert.deepEqual(next.walls, []);
+  });
+});
+
+describe('WALL-06 — free cells for food/won exclude walls, not just the snake', () => {
+  test('eating the one true-free cell wins even though the other empty cell is a wall', () => {
+    const { snake, food, direction, remainingFreeCells } = serpentine(2);
+    const walls = remainingFreeCells;
+    const state = playing({ snake, direction, pendingDirection: direction, food, walls, score: 41 });
+    let spawnAttempts = 0;
+    const random = () => {
+      spawnAttempts += 1;
+      return 0;
+    };
+
+    const next = step(state, { random });
+
+    assert.equal(next.status, 'won');
+    assert.equal(next.food, null);
+    assert.equal(spawnAttempts, 0);
+  });
+
+  test('with the wall cell removed, the same board keeps playing and spawns food on it', () => {
+    const { snake, food, direction, remainingFreeCells } = serpentine(2);
+    const state = playing({ snake, direction, pendingDirection: direction, food, walls: [], score: 41 });
+
+    const next = step(state, { random: () => 0 });
+
+    assert.equal(next.status, 'playing');
+    assert.deepEqual(next.food, { ...remainingFreeCells[0], kind: 'normal' });
+  });
+});
+
 function deepFreeze(value) {
   if (value !== null && typeof value === 'object') {
     Object.values(value).forEach(deepFreeze);
@@ -473,6 +582,19 @@ describe('Core purity contract (CORE-03, CORE-04, CORE-06 — no argument mutati
   test('createInitialState never mutates a frozen options object', () => {
     const options = deepFreeze({ random: () => 0.5 });
     assert.doesNotThrow(() => createInitialState(options));
+  });
+
+  test('step never mutates or pushes into a frozen walls array', () => {
+    const stateWithWalls = deepFreeze({
+      ...playingState,
+      walls: [{ x: 5, y: 5 }],
+    });
+    let next;
+    assert.doesNotThrow(() => {
+      next = step(stateWithWalls);
+    });
+    assert.deepEqual(stateWithWalls.walls, [{ x: 5, y: 5 }]);
+    assert.deepEqual(next.walls, [{ x: 5, y: 5 }]);
   });
 });
 

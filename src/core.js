@@ -48,6 +48,10 @@ function hitsBody(snake, cell) {
   return snake.slice(0, -1).some((segment) => segment.x === cell.x && segment.y === cell.y);
 }
 
+function collides(cells, cell) {
+  return cells.some((occupied) => occupied.x === cell.x && occupied.y === cell.y);
+}
+
 const DELTA = {
   [DIRECTIONS.UP]: { x: 0, y: -1 },
   [DIRECTIONS.DOWN]: { x: 0, y: 1 },
@@ -93,13 +97,14 @@ export function step(state, { random = Math.random } = {}) {
     return state;
   }
 
+  const walls = state.walls ?? [];
   const direction = state.pendingDirection;
   const delta = DELTA[direction];
   const head = state.snake[0];
   const newHead = { x: head.x + delta.x, y: head.y + delta.y };
 
-  if (isOffGrid(newHead) || hitsBody(state.snake, newHead)) {
-    return withLevel({ ...state, status: STATUS.GAME_OVER });
+  if (isOffGrid(newHead) || collides(walls, newHead) || hitsBody(state.snake, newHead)) {
+    return withLevel({ ...state, walls, status: STATUS.GAME_OVER });
   }
 
   const eats = state.food !== null && newHead.x === state.food.x && newHead.y === state.food.y;
@@ -107,18 +112,19 @@ export function step(state, { random = Math.random } = {}) {
   const newSnake = eats ? grownSnake : grownSnake.slice(0, -1);
 
   if (!eats) {
-    return withLevel({ ...state, snake: newSnake, direction, pendingDirection: direction });
+    return withLevel({ ...state, snake: newSnake, walls, direction, pendingDirection: direction });
   }
 
   const scored = {
     ...state,
     snake: newSnake,
+    walls,
     direction,
     pendingDirection: direction,
     score: state.score + 1,
   };
 
-  const free = freeCells([...newSnake]);
+  const free = freeCells([...newSnake, ...walls]);
 
   if (free.length === 0) {
     return withLevel({ ...scored, status: STATUS.WON, food: null });
