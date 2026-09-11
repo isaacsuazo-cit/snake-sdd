@@ -13,6 +13,8 @@
   --color-snake-head: #b2ff59;
   --color-snake-tail: #2e7d32;
   --color-food: #ff5252;
+  --color-wall: #6b7489;
+  --color-food-negative: #b388ff;
   --color-overlay: rgba(10, 12, 18, 0.72);
   --color-accent: #b2ff59;
   --color-accent-danger: #ff5252;
@@ -50,6 +52,8 @@
     --color-snake-head: #43a047;
     --color-snake-tail: #1b5e20;
     --color-food: #e53935;
+    --color-wall: #7b8499;
+    --color-food-negative: #7e57c2;
     --color-overlay: rgba(244, 246, 251, 0.78);
     --color-accent: #2e7d32;
     --color-accent-danger: #c62828;

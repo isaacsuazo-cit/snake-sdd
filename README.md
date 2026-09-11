@@ -48,6 +48,18 @@ main
 
 The planning artifacts (proposal, spec with 28 requirements and 34 scenarios, design, tasks, verification, archive) were produced with Gentle AI SDD and live in Engram memory rather than in this repository.
 
+## Manual checklist (browser play-test)
+
+No `node --test` coverage exists for canvas/DOM behavior; verify these by playing the game in a served browser. Numbering continues the `snake-levels` change's checklist (MC01-MC12 predate this repo).
+
+- [ ] MC13 — Press lowercase `w`/`a`/`s`/`d`: the snake turns up/left/down/right exactly like the arrow keys.
+- [ ] MC14 — Press uppercase `W`/`A`/`S`/`D` (Shift or CapsLock on): the same turns still register, and the reversal guard still blocks turning back on itself.
+- [ ] MC15 — At score 5 (level 2), two wall tiles appear on the board; never inside the snake, never in the 3 cells directly ahead of the head, and they persist unchanged across ticks until game over or restart.
+- [ ] MC16 — Steering the head into a wall tile ends the game exactly like a self-collision: game-over overlay, board shake.
+- [ ] MC17 — As the score crosses level boundaries, the tick visibly speeds up; speed stops increasing once the level reaches 16 (60 ms/tick floor).
+- [ ] MC18 — From level 8 onward, some food renders as a hollow ring with a center bar (not the solid disc); eating it shrinks the snake by 2 segments (never below length 3) and leaves score/level unchanged.
+- [ ] Walls and the negative-apple ring are visually distinguishable from the snake and normal food in both light and dark color schemes.
+
 ## Checklist for contributors
 
 - [ ] `npm test` passes and every new core rule has a failing test before its implementation.

@@ -3,18 +3,28 @@
 
 import { DIRECTIONS } from './core.js';
 
-const DIRECTION_KEYS = {
+// WASD aliases Up/Left/Down/Right; case-insensitive via directionForKey (AD6).
+export const KEY_MAP = Object.freeze({
   ArrowUp: DIRECTIONS.UP,
   ArrowDown: DIRECTIONS.DOWN,
   ArrowLeft: DIRECTIONS.LEFT,
   ArrowRight: DIRECTIONS.RIGHT,
-};
+  w: DIRECTIONS.UP,
+  s: DIRECTIONS.DOWN,
+  a: DIRECTIONS.LEFT,
+  d: DIRECTIONS.RIGHT,
+});
+
+// 1-char keys (WASD) are lowercased before lookup; arrow keys pass through untouched.
+export function directionForKey(key) {
+  return KEY_MAP[key.length === 1 ? key.toLowerCase() : key];
+}
 
 const RESTART_KEYS = new Set(['Enter', ' ']);
 
 export function attachInput(target, { onDirection, onRestart }) {
   function handleKeydown(event) {
-    const direction = DIRECTION_KEYS[event.key];
+    const direction = directionForKey(event.key);
     if (direction !== undefined) {
       event.preventDefault();
       onDirection(direction);

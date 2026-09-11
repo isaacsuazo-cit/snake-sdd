@@ -10,6 +10,8 @@ const COLOR_TOKENS = {
   head: ['--color-snake-head', '#8bc34a'],
   tail: ['--color-snake-tail', '#4caf50'],
   food: ['--color-food', '#e53935'],
+  wall: ['--color-wall', '#6b7489'],
+  foodNegative: ['--color-food-negative', '#b388ff'],
 };
 
 const CELL_INSET = 2;
@@ -147,12 +149,44 @@ export function createRenderer(canvas, { cellSize = 20, hud } = {}) {
     ctx.fill();
   }
 
+  function drawWalls(walls) {
+    ctx.fillStyle = colors.wall;
+    for (const wall of walls) {
+      ctx.fillRect(
+        wall.x * cellSize + CELL_INSET,
+        wall.y * cellSize + CELL_INSET,
+        cellSize - CELL_INSET * 2,
+        cellSize - CELL_INSET * 2,
+      );
+    }
+  }
+
+  // Hollow ring + minus bar: negative food must never rely on color alone (AD7).
+  function drawNegativeFood(centerX, centerY, radius) {
+    const lineWidth = cellSize * 0.15;
+    ctx.strokeStyle = colors.foodNegative;
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius - lineWidth / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(centerX - radius * 0.5, centerY);
+    ctx.lineTo(centerX + radius * 0.5, centerY);
+    ctx.stroke();
+  }
+
   function drawFood(food, time) {
     const baseRadius = cellSize / 2 - CELL_INSET;
     const radius = baseRadius * (1 + FOOD_PULSE_AMOUNT * Math.sin(time / FOOD_PULSE_PERIOD_MS));
+    const centerX = (food.x + 0.5) * cellSize;
+    const centerY = (food.y + 0.5) * cellSize;
+    if ((food.kind ?? 'normal') === 'negative') {
+      drawNegativeFood(centerX, centerY, radius);
+      return;
+    }
     ctx.fillStyle = colors.food;
     ctx.beginPath();
-    ctx.arc((food.x + 0.5) * cellSize, (food.y + 0.5) * cellSize, radius, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fill();
   }
 
@@ -175,6 +209,8 @@ export function createRenderer(canvas, { cellSize = 20, hud } = {}) {
 
   function render(state, { previous = null, progress = 1, time = 0 } = {}) {
     drawBackground();
+
+    drawWalls(state.walls ?? []);
 
     if (state.food !== null) {
       drawFood(state.food, time);
