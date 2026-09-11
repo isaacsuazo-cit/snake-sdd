@@ -83,7 +83,7 @@ body {
 /* Layout */
 
 .game {
-  width: min(100%, 440px);
+  width: min(100%, 640px);
   display: flex;
   flex-direction: column;
   align-items: stretch;

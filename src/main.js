@@ -14,7 +14,7 @@ const canvas = document.getElementById('board');
 const hud = document.getElementById('hud');
 const bestLabel = document.getElementById('best');
 const boardWrap = document.getElementById('board-wrap');
-const render = createRenderer(canvas, { hud });
+const render = createRenderer(canvas, { hud, cellSize: 32 });
 const overlay = createOverlay(document.getElementById('overlay'));
 const highScore = createHighScore(readLocalStorage());
 
