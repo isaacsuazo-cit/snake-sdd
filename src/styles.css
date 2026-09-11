@@ -1,0 +1,321 @@
+/* Page styles and design tokens. The renderer reads --color-* tokens from the canvas. */
+/* JS hooks: #overlay[hidden|data-kind], .board-wrap.is-shaking, #hud.is-popping, #best.is-new-record */
+
+:root {
+  color-scheme: dark;
+
+  --color-page-bg: #0f1117;
+  --color-page-fg: #e6e8ef;
+  --color-page-fg-muted: #8b91a3;
+  --color-board-bg: #161a23;
+  --color-board-border: #2a3040;
+  --color-grid: rgba(255, 255, 255, 0.045);
+  --color-snake-head: #b2ff59;
+  --color-snake-tail: #2e7d32;
+  --color-food: #ff5252;
+  --color-overlay: rgba(10, 12, 18, 0.72);
+  --color-accent: #b2ff59;
+  --color-accent-danger: #ff5252;
+  --color-accent-win: #ffd740;
+  --color-focus: #80d8ff;
+
+  --radius-sm: 4px;
+  --radius-md: 12px;
+
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+
+  --duration-fade: 220ms;
+  --duration-shake: 350ms;
+  --duration-pop: 250ms;
+  --duration-pulse: 1400ms;
+
+  --shadow-board: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --glow-accent: 0 0 12px var(--color-accent);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+
+    --color-page-bg: #f4f6fb;
+    --color-page-fg: #1c2030;
+    --color-page-fg-muted: #5d6478;
+    --color-board-bg: #e6eaf3;
+    --color-board-border: #c6ccdb;
+    --color-grid: rgba(0, 0, 0, 0.06);
+    --color-snake-head: #43a047;
+    --color-snake-tail: #1b5e20;
+    --color-food: #e53935;
+    --color-overlay: rgba(244, 246, 251, 0.78);
+    --color-accent: #2e7d32;
+    --color-accent-danger: #c62828;
+    --color-accent-win: #ef8f00;
+    --color-focus: #0277bd;
+
+    --shadow-board: 0 12px 32px rgba(28, 32, 48, 0.18);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  padding: var(--space-lg) var(--space-md);
+  display: grid;
+  place-items: center;
+  background: var(--color-page-bg);
+  color: var(--color-page-fg);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.4;
+}
+
+/* Layout */
+
+.game {
+  width: min(100%, 440px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-md);
+}
+
+.game__header {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'title best'
+    'hud best';
+  align-items: center;
+  column-gap: var(--space-md);
+  row-gap: var(--space-xs);
+}
+
+.game__title {
+  grid-area: title;
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.hud {
+  grid-area: hud;
+  margin: 0;
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+  transform-origin: left center;
+}
+
+.best {
+  grid-area: best;
+  margin: 0;
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-board-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-page-fg-muted);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  transition:
+    color var(--duration-fade) ease,
+    border-color var(--duration-fade) ease,
+    box-shadow var(--duration-fade) ease;
+}
+
+.game__help {
+  margin: 0;
+  color: var(--color-page-fg-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* Board */
+
+.board-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-board);
+}
+
+#board {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border: 1px solid var(--color-board-border);
+  border-radius: var(--radius-md);
+  background: var(--color-board-bg);
+}
+
+/* Overlay */
+
+#overlay[hidden] {
+  display: none;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--color-overlay);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  text-align: center;
+  animation: overlay-fade-in var(--duration-fade) ease-out both;
+}
+
+.overlay__title {
+  margin: 0;
+  font-size: clamp(1.75rem, 8vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.overlay__score {
+  margin: 0;
+  font-size: 1.125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.overlay__score:empty {
+  display: none;
+}
+
+.overlay__hint {
+  margin: var(--space-sm) 0 0;
+  color: var(--color-page-fg-muted);
+  font-size: 0.9375rem;
+  animation: hint-pulse var(--duration-pulse) ease-in-out infinite;
+}
+
+#overlay[data-kind='start'] .overlay__title {
+  color: var(--color-accent);
+}
+
+#overlay[data-kind='game-over'] .overlay__title {
+  color: var(--color-accent-danger);
+}
+
+#overlay[data-kind='won'] .overlay__title {
+  color: var(--color-accent-win);
+}
+
+/* State hooks toggled from JS */
+
+.board-wrap.is-shaking {
+  animation: board-shake var(--duration-shake) ease-in-out both;
+}
+
+#hud.is-popping {
+  animation: hud-pop var(--duration-pop) ease-out both;
+}
+
+#best.is-new-record {
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: var(--glow-accent);
+}
+
+/* Keyframes */
+
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes hint-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes board-shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  15% {
+    transform: translate(-6px, 2px);
+  }
+  30% {
+    transform: translate(6px, -2px);
+  }
+  45% {
+    transform: translate(-5px, 1px);
+  }
+  60% {
+    transform: translate(5px, -1px);
+  }
+  75% {
+    transform: translate(-3px, 0);
+  }
+  90% {
+    transform: translate(3px, 0);
+  }
+}
+
+@keyframes hud-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.25);
+    color: var(--color-accent);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Focus */
+
+:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 3px;
+}
+
+/* Reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .overlay__hint {
+    opacity: 1;
+  }
+}

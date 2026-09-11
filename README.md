@@ -4,9 +4,9 @@ A classic Snake game in vanilla JavaScript, built as a worked example of Spec-Dr
 
 ## Quick path
 
-1. `npm test` — runs `node --test` (Node >= 20), 27 tests, nothing to install.
+1. `npm test` — runs `node --test` (Node >= 20), 40 tests, nothing to install.
 2. `python3 -m http.server 8000` from this folder.
-3. Open <http://localhost:8000> and play with the arrow keys. Enter or Space restarts after the game ends.
+3. Open <http://localhost:8000>. Press an arrow key to start; Enter or Space restarts after the game ends. The best score is kept in `localStorage`.
 
 Opening `index.html` directly from the filesystem does not work: browsers block `<script type="module">` on `file://`. Serve it over HTTP.
 
@@ -15,10 +15,14 @@ Opening `index.html` directly from the filesystem does not work: browsers block 
 | Module | Role | Imports |
 |--------|------|---------|
 | `src/core.js` | Every game rule: state, movement, collisions, growth, food spawn, win. Pure functions, no DOM, no timers. | nothing |
-| `src/renderer.js` | Draws a state snapshot on a `<canvas>` and writes the score to an `aria-live` HUD. | constants from core |
+| `src/renderer.js` | Draws a state snapshot on a `<canvas>`, interpolating between ticks, and writes the score to an `aria-live` HUD. Colors come from CSS tokens. | constants from core |
 | `src/input.js` | Maps `keydown` to direction and restart intents. Owns no rules. | constants from core |
-| `src/main.js` | Wires the three together; `setInterval` at 150 ms; restarts only from a terminal state. | core, renderer, input |
+| `src/overlay.js` | Fills and toggles the start / game-over / won panel over the board. | nothing |
+| `src/highScore.js` | Best-score persistence over the Web Storage shape, with an in-memory fallback. | nothing |
+| `src/main.js` | Wires everything; `setInterval` at 150 ms simulates, `requestAnimationFrame` renders; restarts only from a terminal state. | core, renderer, input, overlay, highScore |
+| `src/styles.css` | Design tokens (light/dark), layout, and the animation hooks toggled by `main.js`. | — |
 | `test/core.test.js` | `node:test` suite for the core, one `describe` per requirement (`CORE-01`..`CORE-15`). | core |
+| `test/highScore.test.js` | `node:test` suite for `highScore` against a fake storage. | highScore |
 
 Rules worth knowing before changing the core:
 
@@ -48,9 +52,10 @@ The planning artifacts (proposal, spec with 28 requirements and 34 scenarios, de
 
 - [ ] `npm test` passes and every new core rule has a failing test before its implementation.
 - [ ] `src/core.js` still references no browser API; `Math.random` appears only as a default parameter.
-- [ ] `renderer.js`, `input.js` and `main.js` contain no game rule.
+- [ ] `renderer.js`, `input.js`, `overlay.js`, `highScore.js` and `main.js` contain no game rule.
+- [ ] The renderer never sets `canvas.style.width/height`; CSS owns the displayed size (`aspect-ratio: 1`).
 - [ ] The game was played once in a served browser after touching any browser module.
 
 ## Out of scope
 
-Levels, progressive speed, sound, touch controls, score persistence.
+Levels, progressive speed, sound, touch controls.

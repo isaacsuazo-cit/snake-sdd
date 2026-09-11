@@ -4,27 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Snake</title>
-  <style>
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      background: #222;
-      color: #eee;
-      font-family: sans-serif;
-      padding: 2rem;
-    }
-    canvas {
-      border: 1px solid #444;
-    }
-  </style>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
-  <canvas id="board" width="400" height="400">
-    Snake game board. Your browser does not support canvas.
-  </canvas>
-  <p id="hud" aria-live="polite">Score: 0</p>
+  <main class="game">
+    <header class="game__header">
+      <h1 class="game__title">Snake</h1>
+      <p id="hud" class="hud" aria-live="polite">Score: 0</p>
+      <p id="best" class="best">Best: 0</p>
+    </header>
+    <div id="board-wrap" class="board-wrap">
+      <canvas id="board" width="400" height="400">Snake game board. Your browser does not support canvas.</canvas>
+      <div id="overlay" class="overlay" hidden>
+        <h2 id="overlay-title" class="overlay__title"></h2>
+        <p id="overlay-score" class="overlay__score"></p>
+        <p id="overlay-hint" class="overlay__hint"></p>
+      </div>
+    </div>
+    <p class="game__help">Arrow keys to move · Enter or Space to restart</p>
+  </main>
 
   <!-- Module scripts are blocked on file:// (CORS). Serve over HTTP, e.g. python3 -m http.server 8000, then open http://localhost:8000 -->
   <script type="module" src="./src/main.js"></script>
