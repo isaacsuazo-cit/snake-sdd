@@ -1,0 +1,10 @@
+{
+  "name": "snake-game-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A browser Snake game with a pure, timer-free core rules module.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
