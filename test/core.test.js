@@ -515,7 +515,9 @@ describe('WALL-06 — free cells for food/won exclude walls, not just the snake'
 
   test('with the wall cell removed, the same board keeps playing and spawns food on it', () => {
     const { snake, food, direction, remainingFreeCells } = serpentine(2);
-    const state = playing({ snake, direction, pendingDirection: direction, food, walls: [], score: 41 });
+    // score 0 (level 1) keeps this free-cell-exclusion scenario clear of the
+    // APPLE-02 kind roll (level >= 8), which is orthogonal to WALL-06.
+    const state = playing({ snake, direction, pendingDirection: direction, food, walls: [], score: 0 });
 
     const next = step(state, { random: () => 0 });
 
@@ -625,6 +627,83 @@ describe('WALL — distinct picks: an earlier wall never gets picked twice', () 
       { x: 0, y: 19 },
       { x: 1, y: 19 },
     ]);
+  });
+});
+
+describe('APPLE-02 — kind roll gated to level >= 8 (D3)', () => {
+  test('below the threshold, no kind-roll call occurs and the kind stays normal', () => {
+    let calls = 0;
+    const random = () => {
+      calls += 1;
+      return 0.1;
+    };
+    const state = playing({ score: 30 });
+    const next = step(state, { random });
+    assert.equal(next.level, 7);
+    assert.equal(next.food.kind, 'normal');
+    assert.equal(calls, 1);
+  });
+
+  test('at level 8, random() < 0.25 rolls a negative apple', () => {
+    const next = step(playing({ score: 35 }), { random: () => 0.1 });
+    assert.equal(next.level, 8);
+    assert.equal(next.food.kind, 'negative');
+  });
+
+  test('at level 8, random() >= 0.25 rolls a normal apple', () => {
+    const next = step(playing({ score: 35 }), { random: () => 0.9 });
+    assert.equal(next.level, 8);
+    assert.equal(next.food.kind, 'normal');
+  });
+});
+
+describe('APPLE — random() call order at a 7→8 level-up tick (D3)', () => {
+  test('wall picks precede the food-cell pick, which precedes the kind roll', () => {
+    const random = sequence([0.1, 0.2, 0.3, 0.1]);
+    const state = playing({ score: 34 });
+    const next = step(state, { random });
+    assert.equal(next.level, 8);
+    assert.equal(next.walls.length, 2);
+    assert.equal(random.calls, 4);
+    assert.equal(next.food.kind, 'negative');
+  });
+});
+
+describe('APPLE-03 — negative apple shrinks the snake by 2, floored at INITIAL_LENGTH', () => {
+  test('eating a negative apple at the minimum length leaves the snake at length 3 (floor clamp)', () => {
+    const state = playing({ food: { x: 12, y: 10, kind: 'negative' }, score: 0 });
+    const next = step(state, { random: () => 0.5 });
+    assert.equal(next.snake.length, 3);
+  });
+
+  test('a longer snake genuinely shrinks by 2 segments, not clamped', () => {
+    const snake = [
+      { x: 11, y: 10 },
+      { x: 10, y: 10 },
+      { x: 9, y: 10 },
+      { x: 8, y: 10 },
+      { x: 7, y: 10 },
+      { x: 6, y: 10 },
+    ];
+    const state = playing({ snake, food: { x: 12, y: 10, kind: 'negative' }, score: 0 });
+    const next = step(state, { random: () => 0.5 });
+    assert.equal(next.snake.length, 4);
+  });
+});
+
+describe('APPLE-04 — eating a negative apple leaves score (and level) unchanged', () => {
+  test('score and level stay the same after eating a negative apple at level 9', () => {
+    const state = playing({ score: 40, food: { x: 12, y: 10, kind: 'negative' } });
+    const next = step(state, { random: () => 0.5 });
+    assert.equal(next.score, 40);
+    assert.equal(next.level, 9);
+  });
+
+  test('a different score/level combination also stays unchanged, proving the guard is general', () => {
+    const state = playing({ score: 39, food: { x: 12, y: 10, kind: 'negative' } });
+    const next = step(state, { random: () => 0.5 });
+    assert.equal(next.score, 39);
+    assert.equal(next.level, 8);
   });
 });
 

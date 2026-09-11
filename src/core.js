@@ -75,6 +75,27 @@ function spawnWalls(snake, direction, walls, random) {
   return result;
 }
 
+// Negative apples shrink the snake by 2 from its pre-eat length, floored at
+// INITIAL_LENGTH so the run can never end from a shrink alone (design APPLE-03).
+function resolveSnake(grown, eaten, oldLength) {
+  if (eaten === null) return grown.slice(0, -1);
+  if (eaten === 'negative') return grown.slice(0, Math.max(INITIAL_LENGTH, oldLength - 2));
+  return grown;
+}
+
+// random() is consulted for the kind roll only from level 8 onward (design APPLE-02).
+function rollKind(level, random) {
+  return level >= 8 ? (random() < 0.25 ? 'negative' : 'normal') : 'normal';
+}
+
+// Cell pick, then kind roll — two explicit statements so the roll always
+// follows the pick and is never merged into one object literal (design D3).
+function spawnFood(free, level, random) {
+  const cell = pickFreeCell(free, random);
+  const kind = rollKind(level, random);
+  return { ...cell, kind };
+}
+
 const DELTA = {
   [DIRECTIONS.UP]: { x: 0, y: -1 },
   [DIRECTIONS.DOWN]: { x: 0, y: 1 },
@@ -130,11 +151,12 @@ export function step(state, { random = Math.random } = {}) {
     return withLevel({ ...state, walls, status: STATUS.GAME_OVER });
   }
 
-  const eats = state.food !== null && newHead.x === state.food.x && newHead.y === state.food.y;
+  const atFood = state.food !== null && newHead.x === state.food.x && newHead.y === state.food.y;
+  const eaten = atFood ? (state.food.kind ?? 'normal') : null;
   const grownSnake = [newHead, ...state.snake];
-  const newSnake = eats ? grownSnake : grownSnake.slice(0, -1);
+  const newSnake = resolveSnake(grownSnake, eaten, state.snake.length);
 
-  if (!eats) {
+  if (eaten === null) {
     return withLevel({ ...state, snake: newSnake, walls, direction, pendingDirection: direction });
   }
 
@@ -143,7 +165,7 @@ export function step(state, { random = Math.random } = {}) {
     snake: newSnake,
     direction,
     pendingDirection: direction,
-    score: state.score + 1,
+    score: eaten === 'normal' ? state.score + 1 : state.score,
   };
 
   const newLevel = levelFor(scored.score);
@@ -161,6 +183,6 @@ export function step(state, { random = Math.random } = {}) {
   return withLevel({
     ...scored,
     walls: spawnedWalls,
-    food: { ...pickFreeCell(free, random), kind: 'normal' },
+    food: spawnFood(free, newLevel, random),
   });
 }
