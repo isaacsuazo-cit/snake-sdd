@@ -52,6 +52,29 @@ function collides(cells, cell) {
   return cells.some((occupied) => occupied.x === cell.x && occupied.y === cell.y);
 }
 
+// The 3 cells ahead of the head; off-grid entries are kept as-is (never
+// wrapped) and simply never match a real cell in freeCells (design WALL-02).
+function aheadCells(head, direction) {
+  const delta = DELTA[direction];
+  return [1, 2, 3].map((n) => ({ x: head.x + delta.x * n, y: head.y + delta.y * n }));
+}
+
+function legalWallCells(snake, walls, ahead) {
+  return freeCells([...snake, ...walls, ...ahead]);
+}
+
+// Adds up to 2 wall cells; stops early once no legal cell remains (design D1).
+function spawnWalls(snake, direction, walls, random) {
+  const ahead = aheadCells(snake[0], direction);
+  let result = walls;
+  for (let i = 0; i < 2; i += 1) {
+    const legal = legalWallCells(snake, result, ahead);
+    if (legal.length === 0) break;
+    result = [...result, pickFreeCell(legal, random)];
+  }
+  return result;
+}
+
 const DELTA = {
   [DIRECTIONS.UP]: { x: 0, y: -1 },
   [DIRECTIONS.DOWN]: { x: 0, y: 1 },
@@ -118,17 +141,26 @@ export function step(state, { random = Math.random } = {}) {
   const scored = {
     ...state,
     snake: newSnake,
-    walls,
     direction,
     pendingDirection: direction,
     score: state.score + 1,
   };
 
-  const free = freeCells([...newSnake, ...walls]);
+  const newLevel = levelFor(scored.score);
+  const spawnedWalls =
+    newLevel > levelFor(state.score) && newLevel >= 2
+      ? spawnWalls(newSnake, direction, walls, random)
+      : walls;
+
+  const free = freeCells([...newSnake, ...spawnedWalls]);
 
   if (free.length === 0) {
-    return withLevel({ ...scored, status: STATUS.WON, food: null });
+    return withLevel({ ...scored, walls: spawnedWalls, status: STATUS.WON, food: null });
   }
 
-  return withLevel({ ...scored, food: { ...pickFreeCell(free, random), kind: 'normal' } });
+  return withLevel({
+    ...scored,
+    walls: spawnedWalls,
+    food: { ...pickFreeCell(free, random), kind: 'normal' },
+  });
 }

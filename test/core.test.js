@@ -524,6 +524,110 @@ describe('WALL-06 — free cells for food/won exclude walls, not just the snake'
   });
 });
 
+describe('WALL-01 — wall spawn triggers on level-up, after eat and before food pick', () => {
+  test('score crossing into level 2 spawns 2 walls and calls random for walls before the food pick', () => {
+    const random = sequence([0.1, 0.2, 0.3]);
+    const state = playing({ score: 4 });
+    const next = step(state, { random });
+    assert.equal(next.level, 2);
+    assert.equal(next.walls.length, 2);
+    assert.equal(random.calls, 3);
+    assert.notEqual(next.food, null);
+  });
+});
+
+describe('WALL-02 — legal wall cells exclude the 3 ahead-cells, clipped at the edge, never wrapped', () => {
+  test('the on-grid ahead-cells are excluded and the off-grid third never wraps to the far edge', () => {
+    const state = playing({
+      snake: [
+        { x: 16, y: 10 },
+        { x: 15, y: 10 },
+        { x: 14, y: 10 },
+      ],
+      food: { x: 17, y: 10, kind: 'normal' },
+      score: 4,
+    });
+    // Legal pool excludes ahead-cells (18,10)/(19,10); index214 lands on (0,11)
+    // only if they stayed excluded — a wrap bug would shift it onto row y=10.
+    const random = sequence([(214 + 0.5) / 394, 0.5]);
+    const next = step(state, { random });
+    assert.deepEqual(next.walls[0], { x: 0, y: 11 });
+  });
+});
+
+describe('WALL-07 — random() order and row-major indexing for wall picks (D3)', () => {
+  test('two picks land on the pinned legal-pool cells, row-major, earlier picks excluded', () => {
+    const path = boustrophedonPath();
+    const snakeLength = 392;
+    const snake = path.slice(0, snakeLength).reverse();
+    const food = { ...path[snakeLength], kind: 'normal' };
+    const direction = directionBetween(snake[0], food);
+    const state = playing({ snake, direction, pendingDirection: direction, food, score: 4 });
+
+    const random = sequence([(0 + 0.5) / 4, (0 + 0.5) / 3]);
+    const next = step(state, { random });
+
+    assert.deepEqual(next.walls, [
+      { x: 0, y: 19 },
+      { x: 1, y: 19 },
+    ]);
+  });
+});
+
+describe('WALL-03 — partial wall spawn when fewer than 2 legal cells remain (D1)', () => {
+  test('exactly 1 legal cell adds 1 wall, no error', () => {
+    const path = boustrophedonPath();
+    const snakeLength = 395;
+    const snake = path.slice(0, snakeLength).reverse();
+    const food = { ...path[snakeLength], kind: 'normal' };
+    const direction = directionBetween(snake[0], food);
+    const state = playing({ snake, direction, pendingDirection: direction, food, score: 4 });
+    const random = sequence([0.5]);
+
+    let next;
+    assert.doesNotThrow(() => {
+      next = step(state, { random });
+    });
+    assert.deepEqual(next.walls, [{ x: 0, y: 19 }]);
+  });
+
+  test('zero legal cells adds no walls and the step still completes', () => {
+    const path = boustrophedonPath();
+    const snakeLength = 396;
+    const snake = path.slice(0, snakeLength).reverse();
+    const food = { ...path[snakeLength], kind: 'normal' };
+    const direction = directionBetween(snake[0], food);
+    const state = playing({ snake, direction, pendingDirection: direction, food, score: 4 });
+    const random = sequence([0.5]);
+
+    let next;
+    assert.doesNotThrow(() => {
+      next = step(state, { random });
+    });
+    assert.deepEqual(next.walls, []);
+    assert.equal(next.status, 'playing');
+  });
+});
+
+describe('WALL — distinct picks: an earlier wall never gets picked twice', () => {
+  test('same normalized random value twice still yields 2 distinct wall cells', () => {
+    const path = boustrophedonPath();
+    const snakeLength = 393;
+    const snake = path.slice(0, snakeLength).reverse();
+    const food = { ...path[snakeLength], kind: 'normal' };
+    const direction = directionBetween(snake[0], food);
+    const state = playing({ snake, direction, pendingDirection: direction, food, score: 4 });
+
+    const random = sequence([0.1, 0.1]);
+    const next = step(state, { random });
+
+    assert.deepEqual(next.walls, [
+      { x: 0, y: 19 },
+      { x: 1, y: 19 },
+    ]);
+  });
+});
+
 function deepFreeze(value) {
   if (value !== null && typeof value === 'object') {
     Object.values(value).forEach(deepFreeze);
