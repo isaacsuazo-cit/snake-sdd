@@ -76,6 +76,7 @@ No `node --test` coverage exists for canvas/DOM behavior; verify these by playin
 - [ ] Walls and the negative-apple ring are visually distinguishable from the snake and normal food in both light and dark color schemes.
 - [ ] MC19 — The side panel shows the current level and speed (`Level N` / `N ms / tick`) and both update immediately on every level-up; the game-over/won overlay text includes the level reached.
 - [ ] MC20 — At viewport widths below 720px the panel stacks below the board with no horizontal scroll; at 720px and above the panel sits beside the board as a second column. After a run that spawned walls, restarting returns the panel to `Level 1` / `150 ms / tick` and clears the board.
+- [ ] MC21 — Body segments alternate circle, diamond, hexagon and rounded square behind the head; the pattern stays attached to the segments while moving.
 
 ## Checklist for contributors
 

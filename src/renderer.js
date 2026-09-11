@@ -18,6 +18,10 @@ const CELL_INSET = 2;
 const FOOD_PULSE_AMOUNT = 0.1;
 const FOOD_PULSE_PERIOD_MS = 200;
 
+// Body shapes cycle by segment index (head excluded) so the pattern travels with the snake.
+const SEGMENT_SHAPES = ['circle', 'diamond', 'hexagon', 'square'];
+const HEAD_SHAPE = 'square';
+
 // Eye offsets are fractions of a cell measured from the head cell's centre.
 const EYE_OFFSETS = {
   [DIRECTIONS.UP]: [{ x: -0.2, y: -0.22 }, { x: 0.2, y: -0.22 }],
@@ -88,6 +92,61 @@ function traceRoundRect(ctx, x, y, width, height, radius) {
   ctx.closePath();
 }
 
+function traceCircle(ctx, x, y, size) {
+  const radius = size / 2;
+  ctx.moveTo(x + size, y + radius);
+  ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2);
+}
+
+// Square rotated 45°, inscribed in the box.
+function traceDiamond(ctx, x, y, size) {
+  const half = size / 2;
+  ctx.moveTo(x + half, y);
+  ctx.lineTo(x + size, y + half);
+  ctx.lineTo(x + half, y + size);
+  ctx.lineTo(x, y + half);
+  ctx.closePath();
+}
+
+// Flat-top regular hexagon inscribed in the box: vertices every 60° starting at the right-most point.
+function traceHexagon(ctx, x, y, size) {
+  const radius = size / 2;
+  const centerX = x + radius;
+  const centerY = y + radius;
+  for (let i = 0; i < 6; i += 1) {
+    const angle = (Math.PI / 3) * i;
+    const vertexX = centerX + radius * Math.cos(angle);
+    const vertexY = centerY + radius * Math.sin(angle);
+    if (i === 0) {
+      ctx.moveTo(vertexX, vertexY);
+    } else {
+      ctx.lineTo(vertexX, vertexY);
+    }
+  }
+  ctx.closePath();
+}
+
+// Traces one segment shape into the current path; the caller owns beginPath/fill.
+function traceShape(ctx, shape, x, y, size, radius) {
+  switch (shape) {
+    case 'circle':
+      traceCircle(ctx, x, y, size);
+      return;
+    case 'diamond':
+      traceDiamond(ctx, x, y, size);
+      return;
+    case 'hexagon':
+      traceHexagon(ctx, x, y, size);
+      return;
+    default:
+      traceRoundRect(ctx, x, y, size, size, radius);
+  }
+}
+
+function shapeForIndex(index) {
+  return index === 0 ? HEAD_SHAPE : SEGMENT_SHAPES[(index - 1) % SEGMENT_SHAPES.length];
+}
+
 export function createRenderer(canvas, { cellSize = 20, hud } = {}) {
   const boardSize = GRID_SIZE * cellSize;
   const dpr = typeof devicePixelRatio === 'number' && devicePixelRatio > 0 ? devicePixelRatio : 1;
@@ -120,14 +179,14 @@ export function createRenderer(canvas, { cellSize = 20, hud } = {}) {
     ctx.stroke();
   }
 
-  function fillCell(cell, color) {
+  function fillCell(cell, color, shape = HEAD_SHAPE) {
     ctx.fillStyle = color;
     ctx.beginPath();
-    traceRoundRect(
+    traceShape(
       ctx,
+      shape,
       cell.x * cellSize + CELL_INSET,
       cell.y * cellSize + CELL_INSET,
-      cellSize - CELL_INSET * 2,
       cellSize - CELL_INSET * 2,
       cellRadius,
     );
@@ -202,7 +261,7 @@ export function createRenderer(canvas, { cellSize = 20, hud } = {}) {
   function drawSnake(state, segments) {
     const lastIndex = segments.length - 1;
     for (let i = lastIndex; i >= 0; i -= 1) {
-      fillCell(segments[i], bodyColorAt(lastIndex === 0 ? 0 : i / lastIndex));
+      fillCell(segments[i], bodyColorAt(lastIndex === 0 ? 0 : i / lastIndex), shapeForIndex(i));
     }
     drawEyes(segments[0], state.direction);
   }
