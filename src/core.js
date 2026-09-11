@@ -6,22 +6,37 @@ export const INITIAL_LENGTH = 3;
 export const DIRECTIONS = { UP: 'up', DOWN: 'down', LEFT: 'left', RIGHT: 'right' };
 export const STATUS = { PLAYING: 'playing', GAME_OVER: 'game-over', WON: 'won' };
 
-function enumerateFreeCells(snake) {
-  const occupied = new Set(snake.map(({ x, y }) => `${x},${y}`));
-  const freeCells = [];
+export function levelFor(score) {
+  return Math.floor(score / 5) + 1;
+}
+
+export function tickMsFor(level) {
+  return Math.max(60, 150 - 6 * (level - 1));
+}
+
+// Caches levelFor/tickMsFor on every core-emitted state so adapters stay
+// rule-free (design AD1/AD2).
+function withLevel(next) {
+  const level = levelFor(next.score);
+  return { ...next, level, tickMs: tickMsFor(level) };
+}
+
+function freeCells(blocked) {
+  const occupied = new Set(blocked.map(({ x, y }) => `${x},${y}`));
+  const cells = [];
   for (let y = 0; y < GRID_SIZE; y += 1) {
     for (let x = 0; x < GRID_SIZE; x += 1) {
       if (!occupied.has(`${x},${y}`)) {
-        freeCells.push({ x, y });
+        cells.push({ x, y });
       }
     }
   }
-  return freeCells;
+  return cells;
 }
 
-function pickFreeCell(freeCells, random) {
-  const index = Math.floor(random() * freeCells.length);
-  return freeCells[index];
+function pickFreeCell(cells, random) {
+  const index = Math.floor(random() * cells.length);
+  return cells[index];
 }
 
 function isOffGrid({ x, y }) {
@@ -46,16 +61,17 @@ export function createInitialState({ random = Math.random } = {}) {
     { x: 10, y: 10 },
     { x: 9, y: 10 },
   ];
-  const freeCells = enumerateFreeCells(snake);
-  const food = pickFreeCell(freeCells, random);
-  return {
+  const free = freeCells([...snake]);
+  const food = { ...pickFreeCell(free, random), kind: 'normal' };
+  return withLevel({
     snake,
     direction: DIRECTIONS.RIGHT,
     pendingDirection: DIRECTIONS.RIGHT,
     food,
+    walls: [],
     score: 0,
     status: STATUS.PLAYING,
-  };
+  });
 }
 
 const OPPOSITE_DIRECTION = {
@@ -83,7 +99,7 @@ export function step(state, { random = Math.random } = {}) {
   const newHead = { x: head.x + delta.x, y: head.y + delta.y };
 
   if (isOffGrid(newHead) || hitsBody(state.snake, newHead)) {
-    return { ...state, status: STATUS.GAME_OVER };
+    return withLevel({ ...state, status: STATUS.GAME_OVER });
   }
 
   const eats = state.food !== null && newHead.x === state.food.x && newHead.y === state.food.y;
@@ -91,10 +107,9 @@ export function step(state, { random = Math.random } = {}) {
   const newSnake = eats ? grownSnake : grownSnake.slice(0, -1);
 
   if (!eats) {
-    return { ...state, snake: newSnake, direction, pendingDirection: direction };
+    return withLevel({ ...state, snake: newSnake, direction, pendingDirection: direction });
   }
 
-  const freeCells = enumerateFreeCells(newSnake);
   const scored = {
     ...state,
     snake: newSnake,
@@ -103,9 +118,11 @@ export function step(state, { random = Math.random } = {}) {
     score: state.score + 1,
   };
 
-  if (freeCells.length === 0) {
-    return { ...scored, status: STATUS.WON, food: null };
+  const free = freeCells([...newSnake]);
+
+  if (free.length === 0) {
+    return withLevel({ ...scored, status: STATUS.WON, food: null });
   }
 
-  return { ...scored, food: pickFreeCell(freeCells, random) };
+  return withLevel({ ...scored, food: { ...pickFreeCell(free, random), kind: 'normal' } });
 }

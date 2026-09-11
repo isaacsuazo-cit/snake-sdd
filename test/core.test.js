@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { GRID_SIZE, createInitialState, step, queueDirection } from '../src/core.js';
+import { GRID_SIZE, createInitialState, step, queueDirection, levelFor, tickMsFor } from '../src/core.js';
 
 // Boustrophedon (row-major, alternating direction) path covering every grid
 // cell, per design §6. Backing fixture for `serpentine()` below.
@@ -21,9 +21,8 @@ function directionBetween(from, to) {
   return to.y > from.y ? 'down' : 'up';
 }
 
-// Builds a snake covering every cell except `freeCellCount`, with food on
-// the free cell directly ahead of the head so one `step` consumes it.
-// `remainingFreeCells` lists what stays free after eating (design §6).
+// Snake covers every cell except `freeCellCount`; food sits on the next
+// free cell ahead, so `remainingFreeCells` is what stays free after eating.
 function serpentine(freeCellCount) {
   const path = boustrophedonPath();
   const snakeLength = path.length - freeCellCount;
@@ -32,6 +31,39 @@ function serpentine(freeCellCount) {
   const remainingFreeCells = path.slice(snakeLength + 1);
   const direction = directionBetween(snake[0], food);
   return { snake, food, direction, remainingFreeCells };
+}
+
+// Baseline playing fixture shared across LEVEL/APPLE/UI tests; food sits one
+// cell ahead of the head so a bare `step()` call always eats it.
+function playing(overrides = {}) {
+  const base = {
+    snake: [
+      { x: 11, y: 10 },
+      { x: 10, y: 10 },
+      { x: 9, y: 10 },
+    ],
+    direction: 'right',
+    pendingDirection: 'right',
+    food: { x: 12, y: 10, kind: 'normal' },
+    walls: [],
+    score: 0,
+    status: 'playing',
+    level: 1,
+    tickMs: 150,
+  };
+  return { ...base, ...overrides };
+}
+
+// Call-counting stub: returns `values[n]` on the n-th call, then repeats the
+// last value; `.calls` exposes the count for D3 order assertions.
+function sequence(values) {
+  const stub = () => {
+    const value = values[stub.calls] ?? values[values.length - 1];
+    stub.calls += 1;
+    return value;
+  };
+  stub.calls = 0;
+  return stub;
 }
 
 describe('CORE-01 — GRID_SIZE constant', () => {
@@ -77,15 +109,59 @@ describe('CORE-13 — Injectable RNG contract', () => {
   });
 });
 
+describe('LEVEL-01 — levelFor pure boundary', () => {
+  test('levelFor(5) rolls over into level 2', () => {
+    assert.equal(levelFor(5), 2);
+  });
+
+  test('levelFor(4) stays in level 1', () => {
+    assert.equal(levelFor(4), 1);
+  });
+
+  test('levelFor(10) reaches level 3, proving the formula scales', () => {
+    assert.equal(levelFor(10), 3);
+  });
+});
+
+describe('LEVEL-02 — tickMsFor pure floor', () => {
+  test('tickMsFor(16) floors at 60', () => {
+    assert.equal(tickMsFor(16), 60);
+  });
+
+  test('tickMsFor(20) stays clamped at 60, never negative', () => {
+    assert.equal(tickMsFor(20), 60);
+  });
+
+  test('tickMsFor(1) is the base 150ms tick', () => {
+    assert.equal(tickMsFor(1), 150);
+  });
+});
+
+describe('LEVEL-03 — cached level/tickMs written by step', () => {
+  test('a level-up mid-tick updates state.level and state.tickMs in the same returned state', () => {
+    const state = playing({ score: 4 });
+    const next = step(state);
+    assert.equal(next.level, 2);
+    assert.equal(next.tickMs, 144);
+  });
+
+  test('a step with no level change leaves level and tickMs at their prior values', () => {
+    const state = playing({ score: 1, food: { x: 0, y: 0, kind: 'normal' } });
+    const next = step(state);
+    assert.equal(next.level, 1);
+    assert.equal(next.tickMs, 150);
+  });
+});
+
 describe('CORE-14 — RNG-to-free-cell mapping and boundaries', () => {
   test('random() returning 0 maps to the first free cell in row-major order', () => {
     const state = createInitialState({ random: () => 0 });
-    assert.deepEqual(state.food, { x: 0, y: 0 });
+    assert.deepEqual(state.food, { x: 0, y: 0, kind: 'normal' });
   });
 
   test('random() returning 0.999999999 maps to the last free cell with no index error', () => {
     const state = createInitialState({ random: () => 0.999999999 });
-    assert.deepEqual(state.food, { x: 19, y: 19 });
+    assert.deepEqual(state.food, { x: 19, y: 19, kind: 'normal' });
   });
 });
 
@@ -246,8 +322,8 @@ describe('CORE-15 — Free-cell definition', () => {
     const lowRandom = step(state, { random: () => 0 });
     const highRandom = step(state, { random: () => 0.999999999 });
 
-    assert.deepEqual(lowRandom.food, remainingFreeCells[0]);
-    assert.deepEqual(highRandom.food, remainingFreeCells[0]);
+    assert.deepEqual(lowRandom.food, { ...remainingFreeCells[0], kind: 'normal' });
+    assert.deepEqual(highRandom.food, { ...remainingFreeCells[0], kind: 'normal' });
   });
 });
 
@@ -313,6 +389,29 @@ describe('CORE-12 — Restart produces fresh state', () => {
     assert.notEqual(fresh.snake, priorGameOver.snake);
     assert.equal(priorGameOver.status, 'game-over');
     assert.equal(priorGameOver.score, 12);
+  });
+
+  test('restart resets walls, level, tickMs and food kind regardless of the prior run (UI-04)', () => {
+    const priorState = Object.freeze({
+      walls: [{ x: 0, y: 0 }, { x: 1, y: 0 }],
+      score: 12,
+      level: 3,
+      tickMs: 138,
+      food: { x: 5, y: 5, kind: 'negative' },
+      status: 'game-over',
+    });
+
+    const fresh = createInitialState({ random: () => 0.5 });
+
+    assert.deepEqual(fresh.walls, []);
+    assert.equal(fresh.level, 1);
+    assert.equal(fresh.tickMs, 150);
+    assert.equal(fresh.food.kind, 'normal');
+    assert.equal(fresh.status, 'playing');
+    assert.equal(fresh.score, 0);
+    assert.equal(priorState.score, 12);
+    assert.equal(priorState.level, 3);
+    assert.deepEqual(priorState.walls, [{ x: 0, y: 0 }, { x: 1, y: 0 }]);
   });
 });
 
